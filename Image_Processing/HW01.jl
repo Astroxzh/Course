@@ -26,6 +26,9 @@ using ImageFiltering, IndexFunArrays
 # ╔═╡ 31cc54e9-d47b-4df7-a785-dad0120e8cdb
 md"## Load Packages"
 
+# ╔═╡ eb8a1967-7b7a-4ee8-851a-992c9dd13486
+
+
 # ╔═╡ b731d80c-3012-49f5-8e63-9b7cea0ed667
 """
     my_show(arr::AbstractArray{<:Real}; set_one=false, set_zero=false)
@@ -48,6 +51,11 @@ md"# Homework 01"
 begin
 	img = Float64.(testimage("mandril_gray"))
 	my_show(img)
+end
+
+# ╔═╡ 7a7e06df-dba4-4a55-81bc-f7129ab7d874
+begin
+	my_show(img,set_zero=true)
 end
 
 # ╔═╡ 2122c12f-0832-4f19-9a77-3047d5311cba
@@ -76,8 +84,13 @@ This function adds normal distributed noise to `img`.
 """
 function add_gauss_noise(img, σ=one(eltype(img)))
 	# this is still wrong
-	img .+= σ * randn()
-	return img
+	# img .+= σ * randn() #only generate one single value
+
+	# correction:
+	#img .+= σ .* randn(size(img))
+	noiseImg = img .+ σ .* randn(size(img))
+	return noiseImg
+	#return img
 end
 
 # ╔═╡ f89bc1e4-d406-4550-988b-71496b64035a
@@ -99,8 +112,13 @@ This function is memory efficient by using for loops.
 Therefore, don't return a new array but instead modify the existing one!
 The bang (!) is a convention in Julia that a function modifies the input.
 """
-function add_gauss_noise_fl!(img, σ=1)
+function add_gauss_noise_fl!(img, σ=one(eltype(img)))
 	# todo
+	for ii in 1:size(img,1)
+		for jj in 1:size(img,2)
+			img[ii,jj] += σ .* randn()
+		end
+	end
 	return img
 end
 
@@ -155,6 +173,22 @@ If `isnothing(scale_to) == true`, we don't modify/scale the array.
 """
 function add_poisson_noise!(img, scale_to=nothing)
 	# todo
+	if isnothing(scale_to)
+		for ii in 1:size(img,1)
+			for jj in 1:size(img,2)
+				img[ii,jj] = pois_rand(img[ii,jj])
+			end
+		end
+	else
+		scaleFactor = scale_to ./ maximum(img)
+		img .*= scaleFactor 
+		for ii in 1:size(img,1)
+			for jj in 1:size(img,2)
+				img[ii,jj] = pois_rand(scale_to)
+			end
+		end
+		img ./= scaleFactor
+	end
 	return img
 end
 
@@ -206,6 +240,9 @@ should be specified by `probability`.
 """
 function add_hot_pixels!(img, probability=0.1; max_value=1)
 	# todo
+	for ii in eachindex(img)
+		img[ii] = rand()<probability ? max_value : img[ii]
+	end
 	return img
 end
 
@@ -259,7 +296,11 @@ normal
 # ╔═╡ 6acf7ba6-445d-4ac0-a83f-6916318c783c
 function gaussian_noise_remove(arr; kernel_size=(3,3), σ=1)
 	# todo
-	return similar(arr)
+	gaussian_kernel = normal(kernel_size, sigma = σ)
+	gaussian_kernel1 = gaussian_kernel ./ sum(gaussian_kernel)  
+	arr = imfilter(arr, gaussian_kernel1)
+	return arr
+	#return similar(arr)
 end
 
 # ╔═╡ 4f683117-9a09-4837-b0af-5818ac2e62fd
@@ -302,7 +343,10 @@ Try to preserve the image output size. Assign the median to this pixel.
 # ╔═╡ 7bc0f845-d5d4-4192-be1d-b97750e95761
 function median_noise_remove!(arr; kernel_size=(5,5))
 	# todo
-	return similar(arr)
+    output = mapwindow(median, arr, kernel_size)
+    arr .= output
+	#return similar(arr)
+	return arr
 end
 
 # ╔═╡ ac6e7ea7-c277-4180-a809-a37531ab4f11
@@ -1232,9 +1276,11 @@ version = "17.4.0+2"
 # ╔═╡ Cell order:
 # ╟─31cc54e9-d47b-4df7-a785-dad0120e8cdb
 # ╠═8a11c2b7-b6e5-4c26-9e06-ad3ab958db9c
+# ╠═eb8a1967-7b7a-4ee8-851a-992c9dd13486
 # ╠═b731d80c-3012-49f5-8e63-9b7cea0ed667
 # ╟─d8c83f2c-76ea-42b9-bd39-7fa5cafcd4d3
 # ╠═334ebdc5-dc11-4e83-ad12-a1961420a97b
+# ╠═7a7e06df-dba4-4a55-81bc-f7129ab7d874
 # ╟─2122c12f-0832-4f19-9a77-3047d5311cba
 # ╟─a7d7a415-7464-43fb-a2bf-8e3f2d999c32
 # ╠═de104b0a-28a4-42de-ae8d-fa857a8f32e0
