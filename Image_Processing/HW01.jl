@@ -184,7 +184,7 @@ function add_poisson_noise!(img, scale_to=nothing)
 		img .*= scaleFactor 
 		for ii in 1:size(img,1)
 			for jj in 1:size(img,2)
-				img[ii,jj] = pois_rand(scale_to)
+				img[ii,jj] = pois_rand(img[ii,jj])
 			end
 		end
 		img ./= scaleFactor
@@ -298,8 +298,8 @@ function gaussian_noise_remove(arr; kernel_size=(3,3), σ=1)
 	# todo
 	gaussian_kernel = normal(kernel_size, sigma = σ)
 	gaussian_kernel1 = gaussian_kernel ./ sum(gaussian_kernel)  
-	arr = imfilter(arr, gaussian_kernel1)
-	return arr
+	arr1 = imfilter(arr, gaussian_kernel1)
+	return arr1
 	#return similar(arr)
 end
 
