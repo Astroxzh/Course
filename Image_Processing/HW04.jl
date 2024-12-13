@@ -234,7 +234,7 @@ julia> my_conv([1.0,0,0,0], [1.0, 0.5, 0.0, 0.5])
 """
 function my_conv(U::AbstractArray{T, N}, h; center=ntuple(i -> 1, N)) where {T, N}
 	# TODO
-	h = circshift(h, 1 .- center)
+	h = circshift(h, 1 .- center) #shift the h element to first then conv
 	freU = fft(U)
 	freH = fft(h)
 	conImage = ifft(freU .* freH)
@@ -311,7 +311,7 @@ The output array is normalized by its sum to 1.
 function calc_psf(arr_size, radius)
 	# TODO
 	aperture  = circ(arr_size, radius)
-	
+	# size(img) .÷ 2.0 .+ 1 center point tuple, integer div avoid float
 	pointSr = zeros(arr_size)
 	pointSr[arr_size[1] ÷ 2 + 1,arr_size[2] ÷ 2 + 1] = 1.0
 	
@@ -321,6 +321,9 @@ function calc_psf(arr_size, radius)
 	psf = abs2.(ifft(ifftshift(pointSrFreC)))
 	return psf ./ sum(psf)
 end
+
+# ╔═╡ 99154efd-cec4-409a-ae43-bc79c214da1c
+#img[(size(ones(11,11)).÷ 2 .+1)...] []can t access tuple, ... some how cancel the block of tuple, make it as a normal array.
 
 # ╔═╡ 33b3a409-2690-4a4a-a091-cdfe6a831c59
 md"r = $(@bind r PlutoUI.Slider(0.01:0.1:10.0, show_value=true))"
@@ -386,8 +389,9 @@ end
 # ╔═╡ 9f4d5c69-c5a8-4a34-9100-e8209ede71b4
 begin
 	# PSF
-	h3 = calc_psf(size(img), 20)
+	h3 = ifftshift(calc_psf(size(img), 20))
 	simshow(h3)
+	# attente the fftshift ifftshift problem
 end
 
 # ╔═╡ 2d5653cf-fa36-4a0e-99cd-4c9769b84705
@@ -541,11 +545,16 @@ Using two for loops is perfectly fine!
 """
 function loss(imgs::Vector{<:AbstractArray{T, N}}, μ::AbstractArray{T, N}) where {T, N}
 	# TODO
+	#calculate the L2 norm
 	imgLoss = Vector{T}(undef,length(imgs))
 	for ii in 1:length(imgs)
 		imgLoss[ii] = sum(abs2.(imgs[ii] .- strange_sensor_f.(μ)))
 	end
 	lossValue = sum(imgLoss)
+	#simple way:
+	# for img in imgs
+	# 	img += sum(abs2.(img .- strange_sensor_f))
+	# end
 	return lossValue
 end
 
@@ -622,7 +631,8 @@ function gradient(imgs::Vector{<:AbstractArray{T, N}}, μ::AbstractArray{T, N}) 
     grad = zeros(size(μ))
     for img in imgs
 		# must be estimate value - observed value to guarantee the gradient direction
-        sensor_diff = strange_sensor_f.(μ) .- img
+		# there is a - in front of the μ, so should be - in front of the gradient.
+        sensor_diff = strange_sensor_f.(μ) .- img 
         for idx in eachindex(μ)
             grad[idx] += 2 * sensor_diff[idx] * grad_strange_sensor_f(μ[idx])
         end
@@ -689,7 +699,7 @@ step size $(@bind step_size Slider(1f-5:1f-5:1f-1, show_value=true))
 # that value should get smaller with more iterations
 # smaller is better
 loss(imgs, μ_optimized)
-# iter 100, step size 0.02924 minimum
+# iter 100, step size 0.02743 minimum, beat the mean and optimal
 
 # ╔═╡ 3643e55e-3205-4561-b271-058d59f46685
 # this value should be larger than ↑
@@ -2667,6 +2677,7 @@ version = "1.4.1+1"
 # ╟─09321d84-f9a7-412d-8fe4-3ece1bd90b21
 # ╠═ebfe7f3a-098a-41d8-a5bd-2c1e2b374fe0
 # ╠═772fe3f9-6db8-4df4-8813-cbb334035351
+# ╠═99154efd-cec4-409a-ae43-bc79c214da1c
 # ╟─33b3a409-2690-4a4a-a091-cdfe6a831c59
 # ╠═f209c5de-c2bd-4a0b-bbfd-6831e0254023
 # ╟─8b922c48-7d56-4e5b-b039-789e281c5fe1
