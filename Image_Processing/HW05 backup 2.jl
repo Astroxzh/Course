@@ -17,15 +17,11 @@ end
 # ╔═╡ 9112b09c-5a21-11ec-0847-1971b3c9a6cd
 begin
 	using Pkg
-end
-
-# ╔═╡ ab5f0131-8182-4cdf-8bc5-94a98655a084
-begin
-	Pkg.add(path="https://github.com/GuillaumePail/Image-Processing-in-Microscopy/blob/main/src/ImgProcMic.jl")
+	using Revise
 end
 
 # ╔═╡ 4b66d9ba-eb36-4f53-8e87-28b6eadbd828
-using FFTW, Colors, ImageShow, TestImages, Tullio, Zygote, Noise, IndexFunArrays, FourierTools,  PlutoUI, DeconvOptim, PlutoTest, Optim, Statistics, Plots, Revise
+using FFTW, Colors, ImageShow, TestImages, Tullio, Zygote, Noise, IndexFunArrays, FourierTools, ImgProcMic, PlutoUI, DeconvOptim, PlutoTest, Optim, Statistics, Plots
 
 # ╔═╡ 9bc5b039-5c13-46bc-8d3b-9edae93d164a
 using ComponentArrays, Images, Random, MicroscopyTools
@@ -102,8 +98,6 @@ function gray_show(arr::AbstractArray{<:Real}; set_one=true, set_zero=false)
     arr = set_one ? arr ./ maximum(arr) : arr
     Gray.(arr)
 end
-
-# ╔═╡ ca331cbb-e025-4151-b819-e15df9b13cbf
 gray_show(measured)
 
 # ╔═╡ dc9fa103-6a00-4129-b5d1-c1b36216d13d
@@ -497,7 +491,6 @@ PlutoTest.@test (res.minimizer.y_offset |> sort) ≈ (params.y_offset |> sort) r
 # ╠═9112b09c-5a21-11ec-0847-1971b3c9a6cd
 # ╟─33890cd9-4aa6-4e64-815a-f59a541ae8c6
 # ╠═4b66d9ba-eb36-4f53-8e87-28b6eadbd828
-# ╠═ab5f0131-8182-4cdf-8bc5-94a98655a084
 # ╟─606ad4de-213f-4aac-a0a9-9a6827c05c29
 # ╠═e7a503cf-c59c-4737-95f5-b8f38548833a
 # ╟─3194824d-ed15-479a-af10-a1803f9f20bc
@@ -506,7 +499,6 @@ PlutoTest.@test (res.minimizer.y_offset |> sort) ≈ (params.y_offset |> sort) r
 # ╠═d7741c07-0982-4e57-bf95-a3ee0bc6f0b1
 # ╠═aa15a3ed-0f97-4ef9-9704-0ede98426b6c
 # ╠═f4e2cc11-e86e-4afc-a021-aed27283a5f1
-# ╠═ca331cbb-e025-4151-b819-e15df9b13cbf
 # ╟─dc9fa103-6a00-4129-b5d1-c1b36216d13d
 # ╠═6ba1619b-036a-480d-b3bb-88ea6f5b259e
 # ╠═f9bb5a74-067d-4afd-ae61-7f41f2e1dbca
