@@ -14,17 +14,17 @@ macro bind(def, element)
     end
 end
 
-# ╔═╡ 9112b09c-5a21-11ec-0847-1971b3c9a6cd
-begin
-	using Revise
-	using Pkg
-end
-
 # ╔═╡ 4b66d9ba-eb36-4f53-8e87-28b6eadbd828
-using FFTW, Colors, ImageShow, TestImages, Tullio, Zygote, Noise, IndexFunArrays, FourierTools, ImgProcMic, PlutoUI, DeconvOptim, PlutoTest, Optim, Statistics, Plots
+using FFTW, Colors, ImageShow, TestImages, Tullio, Zygote, Noise, IndexFunArrays, FourierTools, PlutoUI, DeconvOptim, PlutoTest, Optim, Statistics, Plots, Revise
 
 # ╔═╡ 9bc5b039-5c13-46bc-8d3b-9edae93d164a
 using ComponentArrays, Images, Random, MicroscopyTools
+
+# ╔═╡ 9112b09c-5a21-11ec-0847-1971b3c9a6cd
+# begin
+# 	# using Pkg
+# 	using 
+# end
 
 # ╔═╡ 33890cd9-4aa6-4e64-815a-f59a541ae8c6
 md"# Package loading
