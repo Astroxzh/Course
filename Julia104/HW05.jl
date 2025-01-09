@@ -225,7 +225,7 @@ function LR_TV(measured, psf, λ, N)
         estimateConv = real(ift(ft(estimate) .* ft(psf)))
         ratio = measured ./ (estimateConv .+ ϵ)
         correction = real(ift(ft(ratio) .* ft(psfFlip)))
-        estimate .= estimate .* correction - λ .* gradient(TV, estimate)[1]
+        estimate .= estimate .* correction ./ (1 .- λ .* gradient(TV, estimate)[1])
     end
 
     return estimate
@@ -423,7 +423,6 @@ function init_params(N, measurement, bin_factor, σ_guess)
 	# find a σ_guess which results in a good estimate
 	σ = [σ_guess for i = 1:N]
 
-
 	peaks = find_peaks(measurement, bin_factor)
 	x_offset = [peaks[i][2] for i =1:N]
 	y_offset = [peaks[i][1] for i =1:N]
@@ -444,7 +443,7 @@ begin
 	# initial guess
 	# try to find an binning factor which results in good peaks
 	bin_factor = 3 # TODO an integer number which produces a good guess
-	σ_guess = 2.0 # TODO a float number which produces a good guess
+	σ_guess = 3.0 # TODO a float number which produces a good guess
 	params_guess = init_params(5, measurement, bin_factor, σ_guess);
 end
 
