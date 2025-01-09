@@ -1,17 +1,19 @@
 ### A Pluto.jl notebook ###
-# v0.20.1
+# v0.20.4
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
+    #! format: off
     quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
+    #! format: on
 end
 
 # ╔═╡ 9112b09c-5a21-11ec-0847-1971b3c9a6cd
@@ -75,9 +77,25 @@ Based on the lecture notes, implement the LR algorithm.
 """
 function LR(measured, psf, N)
 	# TODO
-
 	# lucy richardson algorithm
-	return similar(measured)
+	# O(k+1) = O(k)*[I/(O(k)(conv）P+ϵ)](conv)P(conj)
+	# O:renew estimate, O(0) is the origin observed image, P is psf, ϵ avoids 0
+    psf = psf ./ sum(psf) # Normalize
+    psfFlip = reverse(psf, dims=(1, 2)) # flip of PSF
+	ϵ = 1e-6
+    # Initialization
+    estimate = copy(measured)
+	# estimate = measured
+	
+    for _ in 1:N
+        estimateConv = real(ift(ft(estimate) .* ft(psf)))
+        ratio = measured ./ (estimateConv .+ ϵ)
+        correction = real(ift(ft(ratio) .* ft(psfFlip)))
+		
+        estimate .*= correction
+    end
+
+    return estimate
 end
 
 # ╔═╡ 400aeebf-21bd-4b58-9b64-ccec3071df63
@@ -86,7 +104,7 @@ img = Float32.(testimage("resolution_test_512"));
 
 # ╔═╡ d7741c07-0982-4e57-bf95-a3ee0bc6f0b1
 # TODO: calculate the PSF with a radius of 30
-psf = copy(img)
+psf = calc_psf(size(img), 30)
 
 # ╔═╡ aa15a3ed-0f97-4ef9-9704-0ede98426b6c
 # our measured image, degraded with poisson
@@ -98,6 +116,8 @@ function gray_show(arr::AbstractArray{<:Real}; set_one=true, set_zero=false)
     arr = set_one ? arr ./ maximum(arr) : arr
     Gray.(arr)
 end
+
+# ╔═╡ e68a1b7d-2baa-42fb-aabd-f0cf0a0eb2a6
 gray_show(measured)
 
 # ╔═╡ dc9fa103-6a00-4129-b5d1-c1b36216d13d
@@ -142,7 +162,7 @@ For simple usage, see below:"
 begin
 	# example how @tullio works
 	arr = [1.0, 2.0, 3.0]
-	@tullio arr_ex = abs2(arr[i] - arr[i-1])
+	@tullio arr_ex = abs2(arr[i+1]- arr[i])
 end
 
 # ╔═╡ bfb88c5e-0e45-428b-a66c-b9c37f633c6b
@@ -153,10 +173,10 @@ Calculates the TV regularizer. `ϵ` is a small positive value to make it differe
 """
 function TV(img::AbstractArray{T, N}, ϵ=T(1e-6)) where {T, N}
 	# insert tullio expression here!
+	@tullio TVvalue = sqrt(abs2(img[i,j]-img[i+1,j])+abs2(img[i,j]-img[i,j+1])+ϵ)
 	# TODO
-
 	# that line is wrong, of course
-	return zero(T) .* sum(img)
+	return TVvalue
 end
 
 # ╔═╡ 49143f59-2f8f-46e9-ac32-c4681164ef82
@@ -194,7 +214,21 @@ The `TV` gradient value is weighted with `λ`.
 function LR_TV(measured, psf, λ, N)
 	# TODO
 	# LR with TV
-	similar(measured)
+	psf = psf ./ sum(psf) # Normalize
+    psfFlip = reverse(psf, dims=(1, 2)) # flip of PSF
+	ϵ = 1e-6
+    # Initialization
+    estimate = copy(measured)
+	# estimate = measured
+	
+    for _ in 1:N
+        estimateConv = real(ift(ft(estimate) .* ft(psf)))
+        ratio = measured ./ (estimateConv .+ ϵ)
+        correction = real(ift(ft(ratio) .* ft(psfFlip)))
+        estimate .= estimate .* correction - λ .* gradient(TV, estimate)[1]
+    end
+
+    return estimate
 end
 
 # ╔═╡ ae7c45b6-c8a7-4fe0-b922-9ab40fcce372
@@ -249,11 +283,16 @@ centered at `(x_offset, y_offset)` with standard deviation `σ` and intensity
 function gauss(I, σ::T, x_offset::T, y_offset::T) where T
 	# TODO
 	# complete the Gauss function
+    x = collect(1:256)
+    y = collect(1:256)
 
+    gauss_matrix = [I*exp(-((xi-x_offset)^2+(yi-y_offset)^2)/(2*σ^2)) for yi in y, xi in x]
+
+    return gauss_matrix
 
 	# obviously non sense what we return here.
 	# We just put this to get the notebook running
-	return 0.1 .* ones(T, (256, 256)) .* sum(σ) .* sum(x_offset)
+	# return 0.1 .* ones(T, (256, 256)) .* sum(σ) .* sum(x_offset)
 end
 
 # ╔═╡ 23b9ea69-99d5-4a49-8e36-cd25323c8858
@@ -339,11 +378,9 @@ md"## 5.3 Loss Function"
 Compares the prediction `pred` and the `measurement` under the L2 norm.
 """
 function loss(measurement, pred)
-	# TODO to calculate L2 loss
-
-	
+	# TODO to calculate L2 loss	
 	# line needed to get notebook running
-	return 0 .* sum(pred) .* sum(measurement)
+	return sum((measurement - pred) .^ 2)
 end
 
 # ╔═╡ 726d6133-b7a2-4ff2-a844-e93eee1b7088
@@ -367,7 +404,8 @@ To get a better SND we bin the measurement by a binning factor `bin_factor`.
 """
 function find_peaks(arr, bin_factor)
 	arr_s = bin(arr, (bin_factor,bin_factor))
-	map(x -> x .* bin_factor, Tuple.(findlocalmaxima(arr_s)))
+	map(x -> x .* bin_factor, Tuple.(findlocalmaxima(arr_s))) 
+	#binning : downsampling with window n*n
 end
 
 # ╔═╡ 1a505ff5-4745-42c5-bc40-bc1075fcd4d6
@@ -387,11 +425,16 @@ function init_params(N, measurement, bin_factor, σ_guess)
 
 
 	peaks = find_peaks(measurement, bin_factor)
-	x_offset = [peaks[i][1] for i =1:N]
-	y_offset = [peaks[i][2] for i =1:N]
+	x_offset = [peaks[i][2] for i =1:N]
+	y_offset = [peaks[i][1] for i =1:N]
+
+	# original, the axis is reverse
+	# x_offset = [peaks[i][1] for i =1:N]
+	# y_offset = [peaks[i][2] for i =1:N]
 
 	# you can change that as well! Is it critical?
 	I = [1.0 for i = 1:N]
+	# no, cause algorithm with update it
 	
 	return ComponentVector(σ=σ, x_offset=x_offset, y_offset=y_offset, I=I)
 end
@@ -400,8 +443,8 @@ end
 begin
 	# initial guess
 	# try to find an binning factor which results in good peaks
-	bin_factor = 1 # TODO an integer number which produces a good guess
-	σ_guess = 1.0 # TODO a float number which produces a good guess
+	bin_factor = 3 # TODO an integer number which produces a good guess
+	σ_guess = 2.0 # TODO a float number which produces a good guess
 	params_guess = init_params(5, measurement, bin_factor, σ_guess);
 end
 
@@ -3011,6 +3054,7 @@ version = "1.4.1+1"
 # ╠═d7741c07-0982-4e57-bf95-a3ee0bc6f0b1
 # ╠═aa15a3ed-0f97-4ef9-9704-0ede98426b6c
 # ╠═f4e2cc11-e86e-4afc-a021-aed27283a5f1
+# ╠═e68a1b7d-2baa-42fb-aabd-f0cf0a0eb2a6
 # ╟─dc9fa103-6a00-4129-b5d1-c1b36216d13d
 # ╠═6ba1619b-036a-480d-b3bb-88ea6f5b259e
 # ╠═f9bb5a74-067d-4afd-ae61-7f41f2e1dbca
