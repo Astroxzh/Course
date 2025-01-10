@@ -80,11 +80,13 @@ function LR(measured, psf, N)
 	# lucy richardson algorithm
 	# O(k+1) = O(k)*[I/(O(k)(conv）P+ϵ)](conv)P(conj)
 	# O:renew estimate, O(0) is the origin observed image, P is psf, ϵ avoids 0
-    psf = psf ./ sum(psf) # Normalize
+    # psf = psf ./ sum(psf) # Normalize
     psfFlip = reverse(psf, dims=(1, 2)) # flip of PSF
 	ϵ = 1e-6
     # Initialization
+	# for deconvolution, start with mean values is better
     estimate = copy(measured)
+	estimate .= mean(measured)
 	# estimate = measured
 	
     for _ in 1:N
@@ -117,8 +119,11 @@ function gray_show(arr::AbstractArray{<:Real}; set_one=true, set_zero=false)
     Gray.(arr)
 end
 
+# ╔═╡ 41d668a2-d74e-441c-bf5b-c649d7bac68c
+gray_show(img)
+
 # ╔═╡ e68a1b7d-2baa-42fb-aabd-f0cf0a0eb2a6
-gray_show(measured)
+gray_show(ifftshift(measured))
 
 # ╔═╡ dc9fa103-6a00-4129-b5d1-c1b36216d13d
 md"
@@ -134,7 +139,7 @@ Take that as test!
 rec = LR(measured, psf, iterations);
 
 # ╔═╡ f9bb5a74-067d-4afd-ae61-7f41f2e1dbca
-gray_show(rec)
+gray_show(ifftshift(rec))
 
 # ╔═╡ 0d7e91be-e03e-454c-9ebd-c0b68ca93848
 md"# 2 (Smoothed) Total Variation Regularizer
@@ -214,20 +219,21 @@ The `TV` gradient value is weighted with `λ`.
 function LR_TV(measured, psf, λ, N)
 	# TODO
 	# LR with TV
-	psf = psf ./ sum(psf) # Normalize
-    psfFlip = reverse(psf, dims=(1, 2)) # flip of PSF
+	# psf = psf ./ sum(psf) # Normalize
+    psfFlip = reverse(psf, dims=(1, 2)) # flip of PSF, also can be conj.(psf)
 	ϵ = 1e-6
     # Initialization
     estimate = copy(measured)
+	# estimate .= mean(measured)
 	# estimate = measured
 	
     for _ in 1:N
         estimateConv = real(ift(ft(estimate) .* ft(psf)))
         ratio = measured ./ (estimateConv .+ ϵ)
-        correction = real(ift(ft(ratio) .* ft(psfFlip)))
-        estimate .= estimate .* correction ./ (1 .- λ .* gradient(TV, estimate)[1])
+        correction = real(ift(ft(ratio) .* ft(psfFlip))) 
+        estimate .= estimate .* correction ./ (1.0 .- λ .* gradient(TV, estimate)[1])
     end
-
+	# mygrad = 1 - factor +gradient(TV, estimate)[1]
     return estimate
 end
 
@@ -236,7 +242,10 @@ end
 rec2 = LR_TV(measured, psf, 0.02, 400)
 
 # ╔═╡ 8c91142a-5b2d-4dfc-9764-87a66f90f0cb
-gray_show(rec2)
+gray_show(ifftshift(rec2))
+
+# ╔═╡ b92a07c9-342a-4749-8b44-55de135bbb21
+simshow(ifftshift(rec2), γ=0.2)
 
 # ╔═╡ dcba043b-db09-4adc-8239-a6439a9c074e
 md" ## 4 Bonus
@@ -286,7 +295,7 @@ function gauss(I, σ::T, x_offset::T, y_offset::T) where T
     x = collect(1:256)
     y = collect(1:256)
 
-    gauss_matrix = [I*exp(-((xi-x_offset)^2+(yi-y_offset)^2)/(2*σ^2)) for yi in y, xi in x]
+    gauss_matrix = [I*exp(-((xi-x_offset)^2+(yi-y_offset)^2)/(2*σ^2)) for xi in x, yi in y]
 
     return gauss_matrix
 
@@ -332,6 +341,7 @@ function draw_parameters(N)
 	y_offset = [rand(10:0.1:240) for i = 1:N]
 	I = [rand(0.5:0.1:1.0) for i = 1:N]
 	return ComponentVector(σ=σ, x_offset=x_offset, y_offset=y_offset, I=I)
+	# componentVector somehow is a component structure, like class or structure
 end
 
 # ╔═╡ ef9c0737-ffbc-498b-80d2-2e93558c508f
@@ -424,12 +434,12 @@ function init_params(N, measurement, bin_factor, σ_guess)
 	σ = [σ_guess for i = 1:N]
 
 	peaks = find_peaks(measurement, bin_factor)
-	x_offset = [peaks[i][2] for i =1:N]
-	y_offset = [peaks[i][1] for i =1:N]
+	# x_offset = [peaks[i][2] for i =1:N]
+	# y_offset = [peaks[i][1] for i =1:N]
 
 	# original, the axis is reverse
-	# x_offset = [peaks[i][1] for i =1:N]
-	# y_offset = [peaks[i][2] for i =1:N]
+	x_offset = [peaks[i][1] for i =1:N]
+	y_offset = [peaks[i][2] for i =1:N]
 
 	# you can change that as well! Is it critical?
 	I = [1.0 for i = 1:N]
@@ -443,7 +453,7 @@ begin
 	# initial guess
 	# try to find an binning factor which results in good peaks
 	bin_factor = 3 # TODO an integer number which produces a good guess
-	σ_guess = 3.0 # TODO a float number which produces a good guess
+	σ_guess = 2.5 # TODO a float number which produces a good guess
 	params_guess = init_params(5, measurement, bin_factor, σ_guess);
 end
 
@@ -489,6 +499,9 @@ iterations2 = 10
 
 # ╔═╡ d30c5e75-8a58-4231-8164-c7d783b9bc02
 res = optimize(f, g!, params_guess, LBFGS(), Optim.Options(iterations=30))
+
+# ╔═╡ 07245f66-449f-4768-8b91-c95b82637be1
+# without consider the background, result will be trapped in the local minimum
 
 # ╔═╡ 90b98a76-1bc7-43e0-927c-1cf94d35ffd0
 output_optim = forward(res.minimizer);
@@ -3053,6 +3066,7 @@ version = "1.4.1+1"
 # ╠═d7741c07-0982-4e57-bf95-a3ee0bc6f0b1
 # ╠═aa15a3ed-0f97-4ef9-9704-0ede98426b6c
 # ╠═f4e2cc11-e86e-4afc-a021-aed27283a5f1
+# ╠═41d668a2-d74e-441c-bf5b-c649d7bac68c
 # ╠═e68a1b7d-2baa-42fb-aabd-f0cf0a0eb2a6
 # ╟─dc9fa103-6a00-4129-b5d1-c1b36216d13d
 # ╠═6ba1619b-036a-480d-b3bb-88ea6f5b259e
@@ -3071,6 +3085,7 @@ version = "1.4.1+1"
 # ╠═cfc01fbb-5ee4-4909-ba67-2034506e55e8
 # ╠═ae7c45b6-c8a7-4fe0-b922-9ab40fcce372
 # ╠═8c91142a-5b2d-4dfc-9764-87a66f90f0cb
+# ╠═b92a07c9-342a-4749-8b44-55de135bbb21
 # ╟─dcba043b-db09-4adc-8239-a6439a9c074e
 # ╠═bbb7dda6-84c2-4172-a888-85a3658c1556
 # ╠═231698fd-bb16-4895-9278-0d41dfafdb7e
@@ -3116,6 +3131,7 @@ version = "1.4.1+1"
 # ╟─fb0a02f0-258b-44cc-ad69-0dca3f3ec969
 # ╠═a2311895-c819-4a92-ae08-3ba746997a4e
 # ╠═d30c5e75-8a58-4231-8164-c7d783b9bc02
+# ╠═07245f66-449f-4768-8b91-c95b82637be1
 # ╠═90b98a76-1bc7-43e0-927c-1cf94d35ffd0
 # ╠═b5880735-c615-440c-a0a0-56a6a024494a
 # ╠═efaf6cfb-bf37-4cc2-be30-abbc6706e905
