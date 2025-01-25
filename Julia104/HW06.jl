@@ -74,9 +74,11 @@ The procedure is as following:
 """
 function simulate_PSF(s, r, T=Float32)
 	# TODO calculate real PSF
-	psf = zeros(T, s)
-	psf[12] = 1
-
+	# psf = zeros(T, s)
+	circ = rr2(s) .<= r^2
+	psf = abs2.(ift(circ))
+	psf ./= sum(psf)
+	psf = ifftshift(psf)
 	
 	# don't change freq_limit, is already correct
 	freq_limit = r / (s[1] / 2)
@@ -155,14 +157,17 @@ You should return a vector of the three illumination arrays.
 function illuminate(arr, kg)
 	# x coordinates
 	x = 1:size(arr, 1)
-
 	# todo fix illumination
-	I₁ = x * x'
-	I₂ = x * x'
-	I₃ = x * x'
+	I₁ = 1.0 .+ cos.(kg .* x .* 2π .+ 1 * 2π/3)
+	I₂ = 1.0 .+ cos.(kg .* x .* 2π .+ 2 * 2π/3)
+	I₃ = 1.0 .+ cos.(kg .* x .* 2π .+ 3 * 2π/3)
+
+	I_1 = arr .* I₁
+	I_2 = arr .* I₂
+	I_3 = arr .* I₃
 
 	# todo return correct results
-	[zeros(size(arr)), zeros(size(arr)), zeros(size(arr))]
+	return[I_1, I_2, I_3]
 end
 
 # ╔═╡ 20aaf9b2-2660-413f-90a8-1f4fdc91d8c7
@@ -241,9 +246,16 @@ Use the function `poisson` for that.
 """
 function forward(img, psf, kg, N_phot=1000)
 	# todo illuminate img and convolve with PSF
-
+	img_illu = illuminate(img, kg)
+	img_without_noise1 = FourierTools.conv(img_illu[1], psf)
+	img_without_noise2 = FourierTools.conv(img_illu[2], psf)
+	img_without_noise3 = FourierTools.conv(img_illu[3], psf)
+	
+	meas_1 = poisson(img_without_noise1, N_phot)
+	meas_2 = poisson(img_without_noise2, N_phot)
+	meas_3 = poisson(img_without_noise3, N_phot)
 	# return correct result
-	return [zeros(size(img)), zeros(size(img)), zeros(size(img))]
+	return [meas_1, meas_2, meas_3]
 end
 
 # ╔═╡ d68d9f24-bcea-4bcc-b597-3c051e77d99c
@@ -296,12 +308,19 @@ See the lecture slides for more information.
 """
 function extract_components(Is)
 	# TODO add correct angles
+	θ = [2π/3, 2*2π/3, 3*2π/3]
 	
 	# TODO create correct matrix
-	M = randn((3,3))
+	M = [exp(-1im * θ[1]) 1 exp(1im * θ[1]);
+		 exp(-1im * θ[2]) 1 exp(1im * θ[2]);
+		 exp(-1im * θ[3]) 1 exp(1im * θ[3])]
+
+	IsC = [fft(Is[i]) for i in 1:3]
+
+	unmixing = inv(M) * IsC
 
 	# TODO return correct result
-	return [Is[i] for i in 1:3]
+	return unmixing
 end
 
 # ╔═╡ 53af3f77-cbc2-4809-8dda-743e096df10c
@@ -353,25 +372,33 @@ function reconstruct(psf, Cₙ, fourier_space_shift)
 	# Int shift
 	Δ = round(Int, fourier_space_shift)
 
+	otf = fft(psf)
+
+	otf₋₁ = circshift(otf, (Δ, 0))
+	otf₀ = otf
+	otf₁ = circshift(otf, (-Δ, 0))
+	
 	# TODO fix the weights
-	w₋₁ = similar(psf)
-	w₀ = similar(psf)
-	w₁ = similar(psf)
+	w₋₁ = 0.5 * otf₋₁
+	w₀ = otf
+	w₁ = 0.5 * otf₁
 
 	# TODO fix the mixing 
-	C₋₁ = similar(psf)
-	C₀ = similar(psf)
-	C₁ = similar(psf)
+	C₋₁ = Cₙ[1]
+	C₀ = Cₙ[2]
+	C₁ = Cₙ[3]
 	
 	# the small 1f-8 factor is added to prevent division by zero
 	res_fourier_space = (w₋₁ .* C₋₁ .+ w₀ .* C₀ .+ w₁ .* C₁ .+ 1f-8^2) ./ 
 		  (w₋₁ .+ w₀ .+ w₁ .+ 1f-8)
 
 	# todo calculate similarly to res the eff_otf but adapt it according to the slides
-	eff_otf = similar(psf)
+	eff_otf = (w₋₁ .* otf₋₁ .+ w₀ .* otf₀ .+ w₁ .* otf₁) ./ 
+              (w₋₁ .+ w₀ .+ w₁ .+ 1f-8)
+
 
 	# todo adapt res_fourier_space to be a real space image
-	res = similar(psf)
+	res = real(ifft(res_fourier_space))
 
 	# don't change return args
 	return res, eff_otf
@@ -402,7 +429,15 @@ Copy the wiener filter from previous homeworks and adapt it (OTF instead of the 
 function wiener_filter(img, otf, ϵ)
 	# todo
 	# fix wiener filter but use otf instead of PSF (look old homework solutions)
-	return img
+	imgFre = fft(img)
+
+    wienerFilterFre = conj(otf) ./ (abs2.(otf) .+ ϵ)  # Wiener filter formula
+
+    restoredFre = imgFre .* wienerFilterFre
+
+    restoredImg = real(ifft(restoredFre))
+
+	return restoredImg
 end
 
 # ╔═╡ 33c156b6-5c18-4377-9920-32c7865898e9
