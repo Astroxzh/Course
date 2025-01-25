@@ -85,6 +85,21 @@ function simulate_PSF(s, r, T=Float32)
 	return psf, freq_limit
 end
 
+# ╔═╡ 96d53539-8ce3-4a57-acec-d479296e4366
+circ1 = rr2((5,5)) .<= 2^2
+
+# ╔═╡ 3500ddca-e891-4fba-ab7a-9f1506695cbe
+psf1 = abs2.(ift(circ1))
+
+# ╔═╡ 263b07a4-895b-43d4-a023-2675c67daf23
+psf1 ./= sum(psf1)
+
+# ╔═╡ ce488c98-97d6-4edc-8baf-df4c5d7887b2
+sum(psf1)
+
+# ╔═╡ 1322fd2b-3af8-4a94-97da-6cbf7cb6262e
+#strange, the final sum is already 1
+
 # ╔═╡ cd5bef41-6246-4d88-91d9-c83b7a47e110
 # leave this value equal to 40!
 radius = 40
@@ -1619,6 +1634,11 @@ version = "17.4.0+2"
 # ╟─4b46e310-cc26-4a96-8c2e-0c89307d4e34
 # ╟─7054db2c-606e-48eb-ab93-8c0260cb7a81
 # ╠═edaacc75-fd91-4d46-a31f-21e738253708
+# ╠═96d53539-8ce3-4a57-acec-d479296e4366
+# ╠═3500ddca-e891-4fba-ab7a-9f1506695cbe
+# ╠═263b07a4-895b-43d4-a023-2675c67daf23
+# ╠═ce488c98-97d6-4edc-8baf-df4c5d7887b2
+# ╠═1322fd2b-3af8-4a94-97da-6cbf7cb6262e
 # ╠═cd5bef41-6246-4d88-91d9-c83b7a47e110
 # ╠═29e6311e-eb5b-4073-81dd-7372ac06498e
 # ╠═c4c8b57b-e09a-43f8-b371-bb1f0761215d
