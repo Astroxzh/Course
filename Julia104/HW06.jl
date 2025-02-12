@@ -200,7 +200,7 @@ gray_show(hcat(Illus...))
 # check whether illumination still pass through the system.
 # if you see the same stripes but with lower contrast, then everything
 # is perfect
-gray_show(conv(Illus[1], psf))
+gray_show(conv(Illus[1], psf)) #low pass filter
 
 # ╔═╡ 6e2814c9-5644-47b6-8a6e-3308e1623d5e
 md"### 2 Test"
@@ -241,6 +241,7 @@ kg = 0.8 * freq_limit
 # we need the value later for the reconstruction
 # this value should stay at 64!
 fourier_space_shift = radius * 2 * 0.8
+
 
 # ╔═╡ 2a78c81d-f8f9-4d99-9c24-1aefb9941294
 """
@@ -408,7 +409,7 @@ function reconstruct(psf, Cₙ, fourier_space_shift)
 		  (w₋₁ .+ w₀ .+ w₁ .+ 1f-8)
 
 	# todo calculate similarly to res the eff_otf but adapt it according to the slides
-	eff_otf = (w₋₁ .* otf₋₁ .+ w₀ .* otf₀ .+ w₁ .* otf₁) ./ 
+	eff_otf = (w₋₁ .* (otf₋₁).^2 .+ w₀ .* (otf₀).^2 .+ w₁ .* (otf₁).^2) ./ 
               (w₋₁ .+ w₀ .+ w₁ .+ 1f-8)
 
 
