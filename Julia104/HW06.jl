@@ -409,8 +409,8 @@ function reconstruct(psf, Cₙ, fourier_space_shift)
 		  (w₋₁ .+ w₀ .+ w₁ .+ 1f-8)
 
 	# todo calculate similarly to res the eff_otf but adapt it according to the slides
-	eff_otf = (w₋₁ .* (otf₋₁).^2 .+ w₀ .* (otf₀).^2 .+ w₁ .* (otf₁).^2) ./ 
-              (w₋₁ .+ w₀ .+ w₁ .+ 1f-8)
+	eff_otf = (0.25 * w₋₁ .* (otf₋₁).^2 .+ w₀ .* (otf₀).^2 .+ 0.25 * w₁ .* (otf₁).^2) ./ 
+              (0.5 * w₋₁ .+ w₀ .+ 0.5 * w₁ .+ 1f-8)
 
 
 	# todo adapt res_fourier_space to be a real space image
